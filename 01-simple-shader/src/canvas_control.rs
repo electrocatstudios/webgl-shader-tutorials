@@ -1,4 +1,4 @@
-use web_sys::{WebGlRenderingContext as GL, WebGlProgram, HtmlCanvasElement, window};
+use web_sys::{window, HtmlCanvasElement, WebGlProgram, WebGlRenderingContext as GL, WebGlUniformLocation};
 use yew::prelude::*;
 
 use wasm_bindgen::{prelude::*, JsCast};
@@ -10,7 +10,9 @@ pub struct CanvasControl {
     gl: Option<GL>,
     node_ref: NodeRef,
     last_update: f64,
-    shader_program: Option<WebGlProgram>, 
+    shader_program: Option<WebGlProgram>,
+    time_location: Option<WebGlUniformLocation>,
+    u_time: f32,
     height: i32,
     width: i32,
 }
@@ -49,6 +51,8 @@ impl Component for CanvasControl {
             node_ref: NodeRef::default(),
             last_update: instant::now(),
             shader_program: None,
+            time_location: None,
+            u_time: 0.0,
             height: height as i32,
             width: width as i32,
         }
@@ -136,6 +140,7 @@ impl Component for CanvasControl {
     }
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
+        // Grab context and other setup
         let c = self.node_ref.cast::<HtmlCanvasElement>().unwrap();
         let gl: GL = c
             .get_context("webgl")
@@ -143,30 +148,17 @@ impl Component for CanvasControl {
             .unwrap()
             .dyn_into()
             .unwrap();
+
         c.set_width(self.width as u32);
         c.set_height(self.height as u32);
-
-        // self.width = c.client_width();
-        // self.height = c.client_height();
 
         self.canvas = Some(c);
         self.gl = Some(gl);
 
         if first_render {
-            // The callback to request animation frame is passed a time value which can be used for
-            // rendering motion independent of the framerate which may vary.
-            // let render_frame = self.link.callback(CanvasControlMsg::Render);
-            // let handle = RenderService::request_animation_frame(render_frame);
-            // window()
-            //     .unwrap()
-            //     .request_animation_frame(self.callback.as_ref().unchecked_ref())
-            //     .unwrap();
             self.reload();
 
             ctx.link().send_message(CanvasControlMsg::Render);
-            // A reference to the handle must be stored, otherwise it is dropped and the render won't
-            // occur.
-            // self.callback = Some(Box::new(handle));
         }
     }
 }
@@ -181,16 +173,15 @@ impl CanvasControl {
         }
         let diff = now - self.last_update;
 
-        let delta = diff as f64 / 1000.0;
+        let delta = diff as f64 / 1000.0; // Frac of seconds
+        self.u_time += delta as f32;
+        
         // Do updates using delta
-
-        self.last_update += diff;
+        self.last_update = now;
     }
 
-  
-
     fn reload(&mut self) {
-
+        // Set up shaders and 
         let gl = match &self.gl {
             Some(gl)=> gl,
             None => {
@@ -202,7 +193,7 @@ impl CanvasControl {
         let vert_code = include_str!("./basic.vert");
         let frag_code = include_str!("./basic.frag");
 
-        let canvas: &HtmlCanvasElement = match &self.canvas {
+        let _: &HtmlCanvasElement = match &self.canvas {
             Some(canv) => canv,
             None => return,
         };
@@ -242,8 +233,8 @@ impl CanvasControl {
         let canvassize = gl.get_uniform_location(&shader_program, "canvasSize");
         gl.uniform2f(canvassize.as_ref(), self.width as f32, self.height as f32);
 
-        let time = gl.get_uniform_location(&shader_program, "u_time");
-        gl.uniform1f(time.as_ref(), self.last_update as f32);
+        self.time_location = gl.get_uniform_location(&shader_program, "u_time");
+        gl.uniform1f(self.time_location.as_ref() , 1.0); //self.last_update as f32
 
         self.shader_program = Some(shader_program);
     }
@@ -252,10 +243,6 @@ impl CanvasControl {
         self.canvas_update();
         
         let gl = self.gl.as_ref().expect("GL Context not initialized!");
-
-        // Attach the time as a uniform for the GL context.
-        // let time = gl.get_uniform_location(&self.shader_program.clone().unwrap(), "u_time");
-        // gl.uniform1f(time.as_ref(), self.last_update as f32);
 
         gl.viewport(
             0,
@@ -273,6 +260,9 @@ impl CanvasControl {
         // Clear the color buffer bit
         gl.clear(GL::COLOR_BUFFER_BIT);
        
+        // Update uniforms in the shaders - for now just the u_time (time since start in secs)
+        gl.uniform1f(self.time_location.as_ref() , self.u_time as f32);
+
         gl.draw_arrays(GL::TRIANGLES, 0, 3);
 
         window()
