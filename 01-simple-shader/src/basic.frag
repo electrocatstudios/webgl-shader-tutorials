@@ -18,6 +18,6 @@ void main() {
     // gl_text
     vec2 pos = vec2(gl_FragCoord.x / canvasSize.x, gl_FragCoord.y / canvasSize.y);
 
-    gl_FragColor = vec4(1.,pos.x, pos.y, 1.);
+    gl_FragColor = vec4(sin(u_time),pos.x, pos.y, 1.);
 
 }

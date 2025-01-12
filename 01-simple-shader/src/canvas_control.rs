@@ -242,6 +242,9 @@ impl CanvasControl {
         let canvassize = gl.get_uniform_location(&shader_program, "canvasSize");
         gl.uniform2f(canvassize.as_ref(), self.width as f32, self.height as f32);
 
+        let time = gl.get_uniform_location(&shader_program, "u_time");
+        gl.uniform1f(time.as_ref(), self.last_update as f32);
+
         self.shader_program = Some(shader_program);
     }
 
@@ -251,8 +254,8 @@ impl CanvasControl {
         let gl = self.gl.as_ref().expect("GL Context not initialized!");
 
         // Attach the time as a uniform for the GL context.
-        let time = gl.get_uniform_location(&self.shader_program.clone().unwrap(), "u_time");
-        gl.uniform1f(time.as_ref(), self.last_update as f32);
+        // let time = gl.get_uniform_location(&self.shader_program.clone().unwrap(), "u_time");
+        // gl.uniform1f(time.as_ref(), self.last_update as f32);
 
         gl.viewport(
             0,
