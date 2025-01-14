@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use web_sys::{window, HtmlCanvasElement,HtmlImageElement, WebGlProgram, WebGlRenderingContext as GL, WebGlUniformLocation};
 use yew::prelude::*;
 
@@ -12,7 +14,6 @@ pub struct CanvasControl {
     last_update: f64,
     shader_program: Option<WebGlProgram>,
     time_location: Option<WebGlUniformLocation>,
-    texture: HtmlImageElement,
     tri_count: i32,
     u_time: f32,
     height: i32,
@@ -48,9 +49,6 @@ impl Component for CanvasControl {
         let width = window().unwrap().inner_width().unwrap().as_f64().unwrap();
         let height = window().unwrap().inner_height().unwrap().as_f64().unwrap();
 
-        let image: HtmlImageElement = HtmlImageElement::new().unwrap();
-        image.set_src(TEXTURE_1);
-
         CanvasControl{
             callback: callback,
             canvas: None,
@@ -59,7 +57,6 @@ impl Component for CanvasControl {
             last_update: instant::now(),
             shader_program: None,
             time_location: None,
-            texture: image,
             tri_count: 0,
             u_time: 0.0,
             height: height as i32,
@@ -69,7 +66,7 @@ impl Component for CanvasControl {
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool{
         match msg {
-            CanvasControlMsg::MouseDown(evt) => {
+            CanvasControlMsg::MouseDown(_evt) => {
                 true
             },
             CanvasControlMsg::MouseUp(_evt) => {
@@ -79,7 +76,7 @@ impl Component for CanvasControl {
                 // log!("Event here => ", self.mousehandler.offset_x, self.mousehandler.offset_y);
                 true
             },
-            CanvasControlMsg::TouchStart(evt) => {
+            CanvasControlMsg::TouchStart(_evt) => {
                 // log!("Event here TouchStart => ", evt.0, evt.1);
                 true
             },
@@ -251,48 +248,45 @@ impl CanvasControl {
         self.time_location = gl.get_uniform_location(&shader_program, "u_time");
         gl.uniform1f(self.time_location.as_ref() , 1.0); //self.last_update as f32
 
-
+        // Setup the texture 
+        // based on https://snoozetime.github.io/2019/12/19/webgl-texture.html
         let texture = gl.create_texture().unwrap();
         gl.bind_texture(GL::TEXTURE_2D, Some(&texture));
-        gl.tex_image_2d_with_u32_and_u32_and_image(
-            GL::TEXTURE_2D,
-            0,
-            GL::RGBA.try_into().unwrap(),
-            GL::RGBA.try_into().unwrap(),
-            GL::UNSIGNED_BYTE,
-            &self.texture,
-        );
-        // gl.copy_tex_image_2d(
-        //     GL::TEXTURE_2D, 
-        //     0, 
-        //     GL::RGBA, 
-        //     0, 
-        //     0, 
-        //     self.texture.width(), 
-        //     self.texture.height(),
-        //     0, self.texture);
-        gl.generate_mipmap(GL::TEXTURE_2D);
 
-//     gl.generateMipmap(gl.TEXTURE_2D);
-        let texMesh = gl.get_uniform_location(&shader_program, "texNoise");
-        gl.uniform1i(texMesh.as_ref(), 0);
+        let image: HtmlImageElement = HtmlImageElement::new().unwrap();
+        let imgrc = Rc::new(image.clone());
 
-        
-//   // Create a texture.
-//   var texture = gl.createTexture();
-//   gl.bindTexture(gl.TEXTURE_2D, texture);
-//   // Fill the texture with a 1x1 blue pixel.
-//   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
-//                 new Uint8Array([0, 0, 255, 255]));
-//   // Asynchronously load an image
-//   var image = new Image();
-//   image.src = "https://webglfundamentals.org/webgl/resources/f-texture.png";
-//   image.addEventListener('load', function() {
-//     // Now that the image has loaded make copy it to the texture.
-//     gl.bindTexture(gl.TEXTURE_2D, texture);
-//     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,gl.UNSIGNED_BYTE, image);
-//     gl.generateMipmap(gl.TEXTURE_2D);
-//   });
+        {
+            let image = imgrc.clone();
+            let texture = texture.clone();
+            let gl = Rc::new(gl.clone());
+
+            let a = Closure::wrap(Box::new(move || {
+                gl.bind_texture(GL::TEXTURE_2D, Some(&texture));
+    
+                let _ = gl.tex_image_2d_with_u32_and_u32_and_image(
+                    GL::TEXTURE_2D,
+                    0,
+                    GL::RGBA.try_into().unwrap(),
+                    GL::RGBA.try_into().unwrap(),
+                    GL::UNSIGNED_BYTE,
+                    &image,
+                );
+    
+                // different from webgl1 where we need the pic to be power of 2
+                gl.generate_mipmap(GL::TEXTURE_2D);
+            }) as Box<dyn FnMut()>);
+
+            imgrc.set_onload(Some(a.as_ref().unchecked_ref()));
+    
+            // Normally we'd store the handle to later get dropped at an appropriate
+            // time but for now we want it to be a global handler so we use the
+            // forget method to drop it without invalidating the closure. Note that
+            // this is leaking memory in Rust, so this should be done judiciously!
+            a.forget();
+        }
+        image.set_src(TEXTURE_1);
+
         self.shader_program = Some(shader_program);
     }
 
