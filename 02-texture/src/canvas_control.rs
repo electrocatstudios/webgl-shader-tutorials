@@ -21,21 +21,14 @@ pub struct CanvasControl {
 }
 
 pub enum CanvasControlMsg {
-    MouseDown((f64, f64)),
-    MouseUp((f64,f64)),
-    MouseMove((f64,f64)),
-    TouchStart((f64, f64)),
-    TouchEnd((f64, f64)),
-    TouchMove((f64, f64)),
-    Render,
-    Null
+    Render
 }
 
 
 #[derive(Clone, Debug, PartialEq, Eq, Properties)]
 pub struct CanvasControlProps;
 
-const TEXTURE_1: &str = "/assets/noise.png";
+const TEXTURE_1: &str = "assets/noise.png";
 
 impl Component for CanvasControl {
     type Message = CanvasControlMsg;
@@ -46,6 +39,7 @@ impl Component for CanvasControl {
         let callback =
             Closure::wrap(Box::new(move || comp_ctx.send_message(CanvasControlMsg::Render)) as Box<dyn FnMut()>);
 
+        // Get window size and use this later for sizing the canvas to full screen
         let width = window().unwrap().inner_width().unwrap().as_f64().unwrap();
         let height = window().unwrap().inner_height().unwrap().as_f64().unwrap();
 
@@ -66,78 +60,18 @@ impl Component for CanvasControl {
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool{
         match msg {
-            CanvasControlMsg::MouseDown(_evt) => {
-                true
-            },
-            CanvasControlMsg::MouseUp(_evt) => {
-                true
-            },
-            CanvasControlMsg::MouseMove(_evt) => {
-                // log!("Event here => ", self.mousehandler.offset_x, self.mousehandler.offset_y);
-                true
-            },
-            CanvasControlMsg::TouchStart(_evt) => {
-                // log!("Event here TouchStart => ", evt.0, evt.1);
-                true
-            },
-            CanvasControlMsg::TouchEnd(_evt) => {
-                // log!("Event here TouchEnd => ", evt.0, evt.1);
-                true
-            },
-            CanvasControlMsg::TouchMove(_evt) => {
-                // log!("Event here TouchMove => ", evt.0, evt.1);
-                true
-            },
             CanvasControlMsg::Render => {
-                // log!("Render");
                 self.render();
-                true
-            },
-            CanvasControlMsg::Null => {
                 true
             }
         }
     }
 
-    fn view(&self, ctx: &Context<Self>) -> Html {
-        let onmousedown = ctx.link().callback(move |evt: MouseEvent| {
-            CanvasControlMsg::MouseDown((evt.page_x() as f64, evt.page_y() as f64))
-        });
-        let onmousemove = ctx.link().callback(move |evt: MouseEvent| {
-            CanvasControlMsg::MouseMove((evt.page_x() as f64, evt.page_y() as f64))
-        });
-        let onmouseup = ctx.link().callback(move |evt: MouseEvent| {
-            CanvasControlMsg::MouseUp((evt.page_x() as f64, evt.page_y() as f64))
-        });
-        let ontouchstart = ctx.link().callback(move |evt: TouchEvent | {
-            match evt.touches().get(0) {
-                Some(touch) => CanvasControlMsg::TouchStart((touch.page_x() as f64, touch.page_y() as f64)),
-                None => CanvasControlMsg::Null,
-            }
-        });
-        let ontouchend = ctx.link().callback(move |evt: TouchEvent | {
-            match evt.touches().get(0) {
-                Some(touch) => CanvasControlMsg::TouchEnd((touch.page_x() as f64, touch.page_y() as f64)),
-                None => CanvasControlMsg::Null,
-            }
-        });
-        let ontouchmove = ctx.link().callback(move |evt: TouchEvent | {
-            match evt.touches().get(0) {
-                Some(touch) => CanvasControlMsg::TouchMove((touch.page_x() as f64, touch.page_y() as f64)),
-                None => CanvasControlMsg::Null,
-            }
-        });
-
+    fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
             <div class="game_canvas">
                 <canvas id="canvas"
                     style={"margin: 0px; width: 100vw; height: 100vh; left:0px; top:0px;"}
-                    onmousedown={onmousedown}
-                    onmousemove={onmousemove}
-                    onmouseup={onmouseup}
-                    ontouchstart={ontouchstart}
-                    ontouchend={ontouchend}
-                    ontouchmove={ontouchmove}
                     ref={self.node_ref.clone()}
                     tabindex = "1"
                 ></canvas>
@@ -155,15 +89,18 @@ impl Component for CanvasControl {
             .dyn_into()
             .unwrap();
 
+        // Fill the screen
         c.set_width(self.width as u32);
         c.set_height(self.height as u32);
 
+        // Store references to the canvas and GL context
         self.canvas = Some(c);
         self.gl = Some(gl);
 
         if first_render {
+            // Load the scene - as it's the first time rendering
             self.reload();
-
+            // Send message to internal message pump to start the render loop
             ctx.link().send_message(CanvasControlMsg::Render);
         }
     }
@@ -175,19 +112,20 @@ impl CanvasControl {
         let now = instant::now();
 
         if self.last_update >= now {
+            // Somehow ended up time traveling - ignore
             return;
         }
-        let diff = now - self.last_update;
 
-        let delta = diff as f64 / 1000.0; // Frac of seconds
-        self.u_time += delta as f32;
-        
-        // Do updates using delta
-        self.last_update = now;
+        let diff = now - self.last_update; // Time since last frame in ms
+
+        let delta = diff as f64 / 1000.0; // Convert to seconds
+        self.u_time += delta as f32; // Update the u_time Uniform
+    
+        self.last_update = now; // Make sure we use the "now" from before so we don't miss time
     }
 
     fn reload(&mut self) {
-        // Set up shaders and 
+        // Set up shaders and uniform locations
         let gl = match &self.gl {
             Some(gl)=> gl,
             None => {
@@ -196,9 +134,7 @@ impl CanvasControl {
             }
         };
 
-        let vert_code = include_str!("./basic.vert");
-        let frag_code = include_str!("./basic.frag");
-
+        // Double check we have a canvas - if not then return, something went wrong
         let _: &HtmlCanvasElement = match &self.canvas {
             Some(canv) => canv,
             None => return,
@@ -222,6 +158,10 @@ impl CanvasControl {
         gl.bind_buffer(GL::ARRAY_BUFFER, Some(&vertex_buffer));
         gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &verts, GL::STATIC_DRAW);
 
+        // Set up the shaders - and compile them
+        let vert_code = include_str!("./texture.vert");
+        let frag_code = include_str!("./texture.frag");
+
         let vert_shader = gl.create_shader(GL::VERTEX_SHADER).unwrap();
         gl.shader_source(&vert_shader, &vert_code);
         gl.compile_shader(&vert_shader);
@@ -230,6 +170,7 @@ impl CanvasControl {
         gl.shader_source(&frag_shader, &frag_code);
         gl.compile_shader(&frag_shader);
 
+        // Create the shader program and attach our now compiled shaders
         let shader_program: WebGlProgram = gl.create_program().unwrap();
         gl.attach_shader(&shader_program, &vert_shader);
         gl.attach_shader(&shader_program, &frag_shader);
@@ -242,9 +183,12 @@ impl CanvasControl {
         gl.vertex_attrib_pointer_with_i32(position, 3, GL::FLOAT, false, 0, 0);
         gl.enable_vertex_attrib_array(position);
 
+        // Let the shader know it's resolution
         let canvassize = gl.get_uniform_location(&shader_program, "canvasSize");
         gl.uniform2f(canvassize.as_ref(), self.width as f32, self.height as f32);
 
+        // Get and store the location of the time variable - which the program will tell to the
+        // GPU so it can make calculations based on this time.
         self.time_location = gl.get_uniform_location(&shader_program, "u_time");
         gl.uniform1f(self.time_location.as_ref() , 1.0); //self.last_update as f32
 
@@ -291,6 +235,7 @@ impl CanvasControl {
     }
 
     fn render(&mut self) {
+        // Update internal state before rendering
         self.canvas_update();
         
         let gl = self.gl.as_ref().expect("GL Context not initialized!");

@@ -4,37 +4,10 @@
         <meta charset="utf-8">
         <title>Shader Tutorials: Electro Cat Studios</title>
         
-        <link rel="stylesheet" href="/main-9f56d06d3c6c43cf.css">
+        <link rel="stylesheet" href="/main-a99de81603f94a4b.css">
     
-<link rel="preload" href="/texture-ecab2cf88dac3dc1_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
-<link rel="modulepreload" href="/texture-ecab2cf88dac3dc1.js"></head>
+<link rel="preload" href="/texture-6d5eeeb067ec6a41_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
+<link rel="modulepreload" href="/texture-6d5eeeb067ec6a41.js"></head>
     <body>
     
-<script type="module">import init from '/texture-ecab2cf88dac3dc1.js';init('/texture-ecab2cf88dac3dc1_bg.wasm');</script><script>(function () {
-    var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    var url = protocol + '//' + window.location.host + '/_trunk/ws';
-    var poll_interval = 5000;
-    var reload_upon_connect = () => {
-        window.setTimeout(
-            () => {
-                // when we successfully reconnect, we'll force a
-                // reload (since we presumably lost connection to
-                // trunk due to it being killed, so it will have
-                // rebuilt on restart)
-                var ws = new WebSocket(url);
-                ws.onopen = () => window.location.reload();
-                ws.onclose = reload_upon_connect;
-            },
-            poll_interval);
-    };
-
-    var ws = new WebSocket(url);
-    ws.onmessage = (ev) => {
-        const msg = JSON.parse(ev.data);
-        if (msg.reload) {
-            window.location.reload();
-        }
-    };
-    ws.onclose = reload_upon_connect;
-})()
-</script></body></html>
+<script type="module">import init from '/texture-6d5eeeb067ec6a41.js';init('/texture-6d5eeeb067ec6a41_bg.wasm');</script></body></html>
