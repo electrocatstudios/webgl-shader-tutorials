@@ -119,28 +119,6 @@ const CLOSURE_DTORS = (typeof FinalizationRegistry === 'undefined')
     wasm.__wbindgen_export_7.get(state.dtor)(state.a, state.b)
 });
 
-function makeClosure(arg0, arg1, dtor, f) {
-    const state = { a: arg0, b: arg1, cnt: 1, dtor };
-    const real = (...args) => {
-        // First up with a closure we increment the internal reference
-        // count. This ensures that the Rust closure environment won't
-        // be deallocated while we're invoking it.
-        state.cnt++;
-        try {
-            return f(state.a, state.b, ...args);
-        } finally {
-            if (--state.cnt === 0) {
-                wasm.__wbindgen_export_7.get(state.dtor)(state.a, state.b);
-                state.a = 0;
-                CLOSURE_DTORS.unregister(state);
-            }
-        }
-    };
-    real.original = state;
-    CLOSURE_DTORS.register(real, state, state);
-    return real;
-}
-
 function makeMutClosure(arg0, arg1, dtor, f) {
     const state = { a: arg0, b: arg1, cnt: 1, dtor };
     const real = (...args) => {
@@ -158,6 +136,28 @@ function makeMutClosure(arg0, arg1, dtor, f) {
                 CLOSURE_DTORS.unregister(state);
             } else {
                 state.a = a;
+            }
+        }
+    };
+    real.original = state;
+    CLOSURE_DTORS.register(real, state, state);
+    return real;
+}
+
+function makeClosure(arg0, arg1, dtor, f) {
+    const state = { a: arg0, b: arg1, cnt: 1, dtor };
+    const real = (...args) => {
+        // First up with a closure we increment the internal reference
+        // count. This ensures that the Rust closure environment won't
+        // be deallocated while we're invoking it.
+        state.cnt++;
+        try {
+            return f(state.a, state.b, ...args);
+        } finally {
+            if (--state.cnt === 0) {
+                wasm.__wbindgen_export_7.get(state.dtor)(state.a, state.b);
+                state.a = 0;
+                CLOSURE_DTORS.unregister(state);
             }
         }
     };
@@ -230,20 +230,20 @@ function debugString(val) {
     // TODO we could test for more things here, like `Set`s and `Map`s.
     return className;
 }
-function __wbg_adapter_40(arg0, arg1, arg2) {
-    wasm.closure363_externref_shim(arg0, arg1, arg2);
+function __wbg_adapter_40(arg0, arg1) {
+    wasm._dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__he191165fde9dad53(arg0, arg1);
 }
 
-function __wbg_adapter_43(arg0, arg1) {
-    wasm._dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h3a816b17c6f9c787(arg0, arg1);
+function __wbg_adapter_43(arg0, arg1, arg2) {
+    wasm.closure248_externref_shim(arg0, arg1, arg2);
 }
 
 function __wbg_adapter_46(arg0, arg1, arg2) {
-    wasm.closure465_externref_shim(arg0, arg1, arg2);
+    wasm.closure331_externref_shim(arg0, arg1, arg2);
 }
 
 function __wbg_adapter_49(arg0, arg1, arg2) {
-    wasm.closure480_externref_shim(arg0, arg1, arg2);
+    wasm.closure347_externref_shim(arg0, arg1, arg2);
 }
 
 async function __wbg_load(module, imports) {
@@ -311,13 +311,14 @@ function __wbg_get_imports() {
         const ret = arg0.childNodes;
         return ret;
     };
-    imports.wbg.__wbg_clientHeight_ee299647f82a654c = function(arg0) {
-        const ret = arg0.clientHeight;
-        return ret;
+    imports.wbg.__wbg_clearColor_d58166c97d5eef07 = function(arg0, arg1, arg2, arg3, arg4) {
+        arg0.clearColor(arg1, arg2, arg3, arg4);
     };
-    imports.wbg.__wbg_clientWidth_b7fb680348cb88d4 = function(arg0) {
-        const ret = arg0.clientWidth;
-        return ret;
+    imports.wbg.__wbg_clearDepth_09770ed9850b53ca = function(arg0, arg1) {
+        arg0.clearDepth(arg1);
+    };
+    imports.wbg.__wbg_clear_16ffdcc1a1d6f0c9 = function(arg0, arg1) {
+        arg0.clear(arg1 >>> 0);
     };
     imports.wbg.__wbg_cloneNode_d247de63446fb130 = function() { return handleError(function (arg0) {
         const ret = arg0.cloneNode();
@@ -375,10 +376,6 @@ function __wbg_get_imports() {
         const ret = arg0[arg1 >>> 0];
         return ret;
     };
-    imports.wbg.__wbg_get_dfac72a5ffb577cc = function(arg0, arg1) {
-        const ret = arg0[arg1 >>> 0];
-        return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
-    };
     imports.wbg.__wbg_getwithrefkey_1dc361bd10053bfe = function(arg0, arg1) {
         const ret = arg0[arg1];
         return ret;
@@ -397,10 +394,6 @@ function __wbg_get_imports() {
         getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
         getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
     }, arguments) };
-    imports.wbg.__wbg_height_f36c36e27347cf38 = function(arg0) {
-        const ret = arg0.height;
-        return ret;
-    };
     imports.wbg.__wbg_history_d719742cb5c67d99 = function() { return handleError(function (arg0) {
         const ret = arg0.history;
         return ret;
@@ -569,22 +562,6 @@ function __wbg_get_imports() {
         getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
         getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
     };
-    imports.wbg.__wbg_pageX_6d13bb07824f4544 = function(arg0) {
-        const ret = arg0.pageX;
-        return ret;
-    };
-    imports.wbg.__wbg_pageX_df74c43e31bf52e8 = function(arg0) {
-        const ret = arg0.pageX;
-        return ret;
-    };
-    imports.wbg.__wbg_pageY_5e7dfef64bdf2be8 = function(arg0) {
-        const ret = arg0.pageY;
-        return ret;
-    };
-    imports.wbg.__wbg_pageY_de9decbc3b027dd7 = function(arg0) {
-        const ret = arg0.pageY;
-        return ret;
-    };
     imports.wbg.__wbg_parentElement_41c6f5f746ea74cf = function(arg0) {
         const ret = arg0.parentElement;
         return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
@@ -741,10 +718,6 @@ function __wbg_get_imports() {
         const ret = arg0.then(arg1);
         return ret;
     };
-    imports.wbg.__wbg_touches_464d67ccc79e7632 = function(arg0) {
-        const ret = arg0.touches;
-        return ret;
-    };
     imports.wbg.__wbg_value_47fde8ea2d9fdcd5 = function(arg0, arg1) {
         const ret = arg1.value;
         const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
@@ -761,10 +734,6 @@ function __wbg_get_imports() {
     };
     imports.wbg.__wbg_viewport_770469a07e2d9772 = function(arg0, arg1, arg2, arg3, arg4) {
         arg0.viewport(arg1, arg2, arg3, arg4);
-    };
-    imports.wbg.__wbg_width_9927e6a7adb23d6d = function(arg0) {
-        const ret = arg0.width;
-        return ret;
     };
     imports.wbg.__wbindgen_as_number = function(arg0) {
         const ret = +arg0;
@@ -784,20 +753,20 @@ function __wbg_get_imports() {
         const ret = false;
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper2906 = function(arg0, arg1, arg2) {
-        const ret = makeClosure(arg0, arg1, 364, __wbg_adapter_40);
+    imports.wbg.__wbindgen_closure_wrapper265 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 106, __wbg_adapter_40);
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper5230 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 457, __wbg_adapter_43);
+    imports.wbg.__wbindgen_closure_wrapper590 = function(arg0, arg1, arg2) {
+        const ret = makeClosure(arg0, arg1, 249, __wbg_adapter_43);
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper5373 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 466, __wbg_adapter_46);
+    imports.wbg.__wbindgen_closure_wrapper870 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 332, __wbg_adapter_46);
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper5744 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 481, __wbg_adapter_49);
+    imports.wbg.__wbindgen_closure_wrapper900 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 348, __wbg_adapter_49);
         return ret;
     };
     imports.wbg.__wbindgen_debug_string = function(arg0, arg1) {
@@ -928,7 +897,7 @@ async function __wbg_init(module_or_path) {
     }
 
     if (typeof module_or_path === 'undefined') {
-        module_or_path = new URL('simple-shader-44135ed77848f522_bg.wasm', import.meta.url);
+        module_or_path = new URL('boilerplate-afc8c12d3e2d30b2_bg.wasm', import.meta.url);
     }
     const imports = __wbg_get_imports();
 
