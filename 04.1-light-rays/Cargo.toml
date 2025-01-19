@@ -1,5 +1,5 @@
 [package]
-name = "boilerplate"
+name = "light-rays"
 version = "0.1.0"
 edition = "2021"
 
@@ -37,4 +37,5 @@ features = [
   'WebGlRenderingContext',
   'WebGlShader',
   'WebGlUniformLocation',
+  'WebGlTexture'
 ]
