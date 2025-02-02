@@ -65,9 +65,9 @@ impl Component for CanvasControl {
             u_time: 0.0,
             height: height as i32,
             width: width as i32,
-            mouse_x: 0.0,
+            mouse_x: 0.85,
             mouse_x_loc: None,
-            mouse_y: 0.0,
+            mouse_y: 0.85,
             mouse_y_loc: None
         }
     }
