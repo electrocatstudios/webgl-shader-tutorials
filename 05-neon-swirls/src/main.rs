@@ -5,7 +5,7 @@ mod canvas_control;
 
 #[derive(Clone, Routable, PartialEq)]
 enum Route {
-    #[at("")]
+    #[at("/")]
     Home,
 }
 
