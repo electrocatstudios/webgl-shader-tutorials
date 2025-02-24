@@ -1,10 +1,16 @@
 use std::rc::Rc;
 
-use web_sys::{window, HtmlCanvasElement,HtmlImageElement, WebGlProgram, WebGlRenderingContext as GL, WebGlUniformLocation};
+use web_sys::{window, HtmlCanvasElement, HtmlImageElement, WebGlProgram, WebGlRenderingContext as GL, WebGlUniformLocation};
 use yew::prelude::*;
-
+use gloo_net::http::Request;
+use wasm_bindgen_futures::*;
 use wasm_bindgen::{prelude::*, JsCast};
 use gloo_console::log;
+use gltf_json;
+use std::collections::HashMap;
+
+use super::camera::Camera;
+use super::model::Model;
 
 pub struct CanvasControl {
     callback: Closure<dyn FnMut()>,
@@ -14,6 +20,7 @@ pub struct CanvasControl {
     last_update: f64,
     shader_program: Option<WebGlProgram>,
     time_location: Option<WebGlUniformLocation>,
+    models: Vec::<Model>,
     tri_count: i32,
     u_time: f32,
     height: i32,
@@ -22,6 +29,8 @@ pub struct CanvasControl {
     mouse_x_loc: Option<WebGlUniformLocation>,
     mouse_y: f32,
     mouse_y_loc: Option<WebGlUniformLocation>,
+    in_render_loop: bool,
+    camera: Camera
 }
 
 pub enum CanvasControlMsg {
@@ -31,6 +40,7 @@ pub enum CanvasControlMsg {
     TouchStart((f64, f64)),
     TouchEnd((f64, f64)),
     TouchMove((f64, f64)),
+    ModelReceived(String, String),
     Render,
     Null
 }
@@ -39,7 +49,6 @@ pub enum CanvasControlMsg {
 #[derive(Clone, Debug, PartialEq, Eq, Properties)]
 pub struct CanvasControlProps;
 
-const TEXTURE_1: &str = "/assets/forest_scene.png";
 
 impl Component for CanvasControl {
     type Message = CanvasControlMsg;
@@ -53,6 +62,40 @@ impl Component for CanvasControl {
         let width = window().unwrap().inner_width().unwrap().as_f64().unwrap();
         let height = window().unwrap().inner_height().unwrap().as_f64().unwrap();
 
+        let comp_ctx = ctx.link().clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            let filename = "assets/triangle.gltf".to_string();
+            let response = Request::get(&filename.clone())
+                .header("Content-Type", "application/json")
+                .send()
+                .await;
+    
+            match response {
+                Ok(resp) => {
+                    // gloo_console::log!("Got response");
+                    let filecontent = match resp.text().await {
+                        Ok(val) => val,
+                        Err(err) => {
+                            gloo_console::log!("Error while getting gltf: {:?}", err.to_string());
+                            return;
+                        }
+                    };
+                    // gloo_console::log!(val);
+                    // gloo_console::log!(resp.json().await.unwrap());
+                    
+                    // let model = gltf_json::deserialize::from_reader(resp.body().unwrap().get_reader()).unwrap();
+                    // if let Ok(data) = 
+                    // resp.json::<gltf::GLTF>().await {
+                        comp_ctx.send_message(CanvasControlMsg::ModelReceived(filename, filecontent));
+                    // }
+                }
+                Err(err) => {
+                    gloo_console::log!("Error while getting gltf: {:?}", err.to_string());
+                    // comp_ctx.send_message(Msg::RequestError(err.to_string()));
+                }
+            }
+        });
+
         CanvasControl{
             callback: callback,
             canvas: None,
@@ -61,6 +104,7 @@ impl Component for CanvasControl {
             last_update: instant::now(),
             shader_program: None,
             time_location: None,
+            models: Vec::new(), //HashMap::new(),
             tri_count: 0,
             u_time: 0.0,
             height: height as i32,
@@ -68,11 +112,13 @@ impl Component for CanvasControl {
             mouse_x: 0.85,
             mouse_x_loc: None,
             mouse_y: 0.85,
-            mouse_y_loc: None
+            mouse_y_loc: None,
+            in_render_loop: false,
+            camera: Camera::new()
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool{
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool{
         match msg {
             CanvasControlMsg::MouseDown(evt) => {
                 self.mouse_x = evt.0 as f32 / self.width as f32;
@@ -99,7 +145,23 @@ impl Component for CanvasControl {
                 true
             },
             CanvasControlMsg::Render => {
-                self.render();
+           
+                if !self.in_render_loop{
+                    self.in_render_loop = true;
+                    // gloo_console::log!("Render called");
+                    self.render();
+                }
+                true
+            },
+            CanvasControlMsg::ModelReceived(name, content) => {
+                gloo_console::log!("Model received! ", name.clone());
+                // gloo_console::log!("Model content: ", content.clone());
+                let gltf: gltf_json::Root = gltf_json::deserialize::from_reader(content.as_bytes()).unwrap();
+                // gloo_console::log!(gltf.accessors.len());
+                self.models.push(Model::new(name, gltf));
+                self.reload();
+
+                ctx.link().send_message(CanvasControlMsg::Render);
                 true
             },
             CanvasControlMsg::Null => {
@@ -164,17 +226,21 @@ impl Component for CanvasControl {
             .dyn_into()
             .unwrap();
 
+        gl.enable(GL::DEPTH_TEST);
+        gl.enable(GL::CULL_FACE);
+    
+
         c.set_width(self.width as u32);
         c.set_height(self.height as u32);
 
         self.canvas = Some(c);
         self.gl = Some(gl);
 
-        if first_render {
-            self.reload();
+        // if first_render {
+        //     self.reload();
 
-            ctx.link().send_message(CanvasControlMsg::Render);
-        }
+        //     ctx.link().send_message(CanvasControlMsg::Render);
+        // }
     }
 }
 
@@ -197,7 +263,7 @@ impl CanvasControl {
 
     fn reload(&mut self) {
         // Set up shaders and 
-        let gl = match &self.gl {
+        let gl: &GL = match &self.gl {
             Some(gl)=> gl,
             None => {
                 log!("ERROR Setting up scene without a proper gl context");
@@ -205,8 +271,9 @@ impl CanvasControl {
             }
         };
 
-        let vert_code = include_str!("./fractal.vert");
-        let frag_code = include_str!("./fractal.frag");
+        self.camera.setup(self.width as f32,self.height as f32);
+
+        
 
         let _: &HtmlCanvasElement = match &self.canvas {
             Some(canv) => canv,
@@ -222,87 +289,22 @@ impl CanvasControl {
             1.0, 1.0, 0.
         ];
 
-        // Store count of triangle points (each point is 3 coords)
-        self.tri_count = vertices.len() as i32 / 3;
-
-        let vertex_buffer = self.gl.clone().unwrap().create_buffer().unwrap();
-        let verts = js_sys::Float32Array::from(vertices.as_slice());
-
-        gl.bind_buffer(GL::ARRAY_BUFFER, Some(&vertex_buffer));
-        gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &verts, GL::STATIC_DRAW);
-
-        let vert_shader = gl.create_shader(GL::VERTEX_SHADER).unwrap();
-        gl.shader_source(&vert_shader, &vert_code);
-        gl.compile_shader(&vert_shader);
-
-        let frag_shader = gl.create_shader(GL::FRAGMENT_SHADER).unwrap();
-        gl.shader_source(&frag_shader, &frag_code);
-        gl.compile_shader(&frag_shader);
-
-        let shader_program: WebGlProgram = gl.create_program().unwrap();
-        gl.attach_shader(&shader_program, &vert_shader);
-        gl.attach_shader(&shader_program, &frag_shader);
-        gl.link_program(&shader_program);
-
-        gl.use_program(Some(&shader_program));
-
-        // Attach the position vector as an attribute for the GL context.
-        let position = gl.get_attrib_location(&shader_program, "a_position") as u32;
-        gl.vertex_attrib_pointer_with_i32(position, 3, GL::FLOAT, false, 0, 0);
-        gl.enable_vertex_attrib_array(position);
-
-        let canvassize = gl.get_uniform_location(&shader_program, "canvasSize");
-        gl.uniform2f(canvassize.as_ref(), self.width as f32, self.height as f32);
-
-        self.time_location = gl.get_uniform_location(&shader_program, "u_time");
-        gl.uniform1f(self.time_location.as_ref() , 1.0);
-
-        // Store mouse location
-        self.mouse_x_loc = gl.get_uniform_location(&shader_program, "mouse_x");
-        gl.uniform1f(self.mouse_x_loc.as_ref() , 1.0);
-        self.mouse_y_loc = gl.get_uniform_location(&shader_program, "mouse_y");
-        gl.uniform1f(self.mouse_y_loc.as_ref() , 1.0);
-
-        // Setup the texture 
-        // based on https://snoozetime.github.io/2019/12/19/webgl-texture.html
-        let texture = gl.create_texture().unwrap();
-        gl.bind_texture(GL::TEXTURE_2D, Some(&texture));
-
-        let image: HtmlImageElement = HtmlImageElement::new().unwrap();
-        let imgrc = Rc::new(image.clone());
-
-        {
-            let image = imgrc.clone();
-            let texture = texture.clone();
-            let gl = Rc::new(gl.clone());
-
-            let a = Closure::wrap(Box::new(move || {
-                gl.bind_texture(GL::TEXTURE_2D, Some(&texture));
-    
-                let _ = gl.tex_image_2d_with_u32_and_u32_and_image(
-                    GL::TEXTURE_2D,
-                    0,
-                    GL::RGBA.try_into().unwrap(),
-                    GL::RGBA.try_into().unwrap(),
-                    GL::UNSIGNED_BYTE,
-                    &image,
-                );
-    
-                // different from webgl1 where we need the pic to be power of 2
-                gl.generate_mipmap(GL::TEXTURE_2D);
-            }) as Box<dyn FnMut()>);
-
-            imgrc.set_onload(Some(a.as_ref().unchecked_ref()));
-    
-            // Normally we'd store the handle to later get dropped at an appropriate
-            // time but for now we want it to be a global handler so we use the
-            // forget method to drop it without invalidating the closure. Note that
-            // this is leaking memory in Rust, so this should be done judiciously!
-            a.forget();
+        for model in self.models.iter_mut() {
+            model.setup_shader(gl, self.width as f32, self.height as f32);
+            model.load_textures(gl);
+            model.setup(gl);
         }
-        image.set_src(TEXTURE_1);
 
-        self.shader_program = Some(shader_program);
+   
+        
+        // // Store mouse location
+        // self.mouse_x_loc = gl.get_uniform_location(&shader_program, "mouse_x");
+        // gl.uniform1f(self.mouse_x_loc.as_ref() , 1.0);
+        // self.mouse_y_loc = gl.get_uniform_location(&shader_program, "mouse_y");
+        // gl.uniform1f(self.mouse_y_loc.as_ref() , 1.0);
+
+
+        // self.shader_program = Some(shader_program);
     }
 
     fn render(&mut self) {
@@ -319,9 +321,6 @@ impl CanvasControl {
 
         gl.clear_color(0., 0.7, 0., 1.0);
         gl.clear_depth(1.0);
-
-        // Enable the depth test
-        gl.enable(GL::DEPTH_TEST);
 
         // Clear the color buffer bit
         gl.clear(GL::COLOR_BUFFER_BIT);

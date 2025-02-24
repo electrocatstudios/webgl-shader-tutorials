@@ -2,6 +2,9 @@ use yew::prelude::*;
 use yew_router::prelude::*;
 
 mod canvas_control;
+mod model;
+mod camera;
+mod utils;
 
 #[derive(Clone, Routable, PartialEq)]
 enum Route {

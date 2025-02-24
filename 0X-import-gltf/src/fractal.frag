@@ -3,8 +3,8 @@ precision highp float;
 uniform float u_time;
 uniform vec2 canvasSize;
 uniform sampler2D texture;
-uniform float mouse_x;
-uniform float mouse_y;
+// uniform float mouse_x;
+// uniform float mouse_y;
 
 #define PI 3.1415
 #define TWO_PI 6.2824
@@ -40,6 +40,8 @@ void main(void)
   // col += smoothstep(.01, .0, abs(d));
 
   float scale = 2.;
+  float mouse_x = canvasSize.x / 2.0;
+  float mouse_y = canvasSize.y / 2.0;
   
   // Calculate depth of max number of iterations
   // We cycle between low depth and high depth
