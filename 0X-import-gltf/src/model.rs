@@ -1,6 +1,6 @@
 use std::{collections::HashMap, rc::Rc};
 
-use euclid::Vector3D;
+use euclid::{Transform3D, Vector3D};
 
 use gltf_json::{accessor, mesh::Semantic, validation::Checked};
 use base64::prelude::*;
@@ -8,11 +8,13 @@ use base64::prelude::*;
 use wasm_bindgen::{prelude::*, JsCast};
 use web_sys::{HtmlImageElement, WebGlProgram, WebGlRenderingContext as GL};
 
+use crate::camera::Camera;
 use crate::utils;
 
 pub struct Model {
     pub name: String,
     pub gltf: gltf_json::Root,
+    pub matrix: Transform3D<f32, (), ()>,
     pub position: Vector3D<f32, ()>,
     pub rotation: Vector3D<f32, ()>,
     pub scale: Vector3D<f32, ()>,
@@ -21,7 +23,8 @@ pub struct Model {
     pub time_location: Option<web_sys::WebGlUniformLocation>,
     pub position_location: Option<u32>,
     pub shader_program: Option<WebGlProgram>,
-    pub poly_count: usize
+    pub poly_count: usize,
+    // pub vao: Option<WebGlVertexArrayObject>,
 }
 
 const TEXTURE_1: &str = "/assets/forest_scene.png";
@@ -31,6 +34,7 @@ impl Model {
         Model {
             name: name,
             gltf: gltf,
+            matrix: Transform3D::identity(),
             position: Vector3D::new(0.0, 0.0, 0.0),
             rotation: Vector3D::new(0.0, 0.0, 0.0),
             scale: Vector3D::new(1.0, 1.0, 1.0),
@@ -40,12 +44,13 @@ impl Model {
             time_location: None,
             shader_program: None,
             poly_count: 0,
+            // vao: None,
         }
     }
 
     pub fn setup_shader(&mut self, gl: &GL, width: f32, height: f32) { // TODO: Add shader name so each one can have it's own
-        let vert_code = include_str!("./fractal.vert");
-        let frag_code = include_str!("./fractal.frag");
+        let vert_code = include_str!("./simple.vert");
+        let frag_code = include_str!("./simple.frag");
         
         let vert_shader = gl.create_shader(GL::VERTEX_SHADER).unwrap();
         gl.shader_source(&vert_shader, &vert_code);
@@ -63,12 +68,8 @@ impl Model {
         gl.use_program(Some(&shader_program));
 
         // Attach the position vector as an attribute for the GL context.
-        let position = gl.get_attrib_location(&shader_program, "a_position") as u32;
-        gl.vertex_attrib_pointer_with_i32(position, 3, GL::FLOAT, false, 0, 0);
-        gl.enable_vertex_attrib_array(position);
-        self.position_location = Some(position);
-
-        let canvassize = gl.get_uniform_location(&shader_program, "canvasSize");
+        
+        let canvassize = gl.get_uniform_location(&shader_program, "u_screensize");
         gl.uniform2f(canvassize.as_ref(), width, height);
 
         self.time_location = gl.get_uniform_location(&shader_program, "u_time");
@@ -79,69 +80,135 @@ impl Model {
 
     pub fn setup(&mut self, gl: &GL) {
 
-        // Store count of triangle points (each point is 3 coords)
-        // self.tri_count = vertices.len() as i32 / 3;
-        // self.gltf.scenes.iter().for_each(|scene| {
-            // scene.nodes.iter().for_each(|node| {
-        // let node = self.gltf.nodes.get(0).unwrap();
+        // TODO: loop through all meshes and perform this - rather than first one
         let mesh = self.gltf.meshes.get(0).unwrap();
         mesh.primitives.iter().for_each(|primitive| {
-            
-            for (attribute, value) in primitive.attributes.iter() {     
-                let (ind, attr_name) = match attribute {
-                    Checked::Valid(attr) => {
-                        // gloo_console::log!("Attribute: ", attr.to_string(), value.to_string());
-                        (value, attr.to_string().clone())
-                    },
-                    Checked::Invalid => {
-                        gloo_console::log!("Invalid attribute: ");
-                        continue;
+            /* Position Buffer */
+            match utils::get_data_from_buffer(primitive, &self.gltf, Semantic::Positions){
+                Ok(buffer) => {
+                    gloo_console::log!("Got position buffer", buffer.buffer.len());
+                    let conv_buffer = utils::get_f32_buffer_from_u8(buffer.buffer);
+                    self.poly_count = buffer.triangle_count as usize;
+                    let vertex_buffer = gl.create_buffer().unwrap();
+                    // for v in conv_buffer.iter() {
+                    //     gloo_console::log!("Vertex: ", *v);
+                    // }        
+                    let verts = js_sys::Float32Array::from(conv_buffer.as_slice());
+                    gloo_console::log!("Verts: ", verts.length());
+                    
+                    gl.bind_buffer(GL::ARRAY_BUFFER, Some(&vertex_buffer));
+                    gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &verts, GL::STATIC_DRAW);
+                    
+                    match &self.shader_program {
+                        Some(sp) => {
+                            let att = gl.get_attrib_location(sp, "a_position");
+                            gl.vertex_attrib_pointer_with_i32(att as u32, 3, GL::FLOAT, false, 0, 0);
+                            gl.enable_vertex_attrib_array(att as u32);
+                        },
+                        None => {
+                            gloo_console::log!("No shader program found while setting a_position");
+                        } 
                     }
-                };
-
-                let accessor = self.gltf.accessors.get(ind.value()).unwrap();
-
-                let (component_count, byte_size, comp_typ) = utils::get_accessor_details(accessor);
-
-                let buffer = match utils::get_data_from_buffer(primitive, &self.gltf, Semantic::Positions){
-                    Ok(buffer) => {
-                        gloo_console::log!("Buffer outside func: ", buffer.len());
-                        buffer
-                    },
-                    Err(err) => {
-                        gloo_console::log!("Error getting buffer: ", err);
-                        continue;
-                    }
-                };
-                gloo_console::log!("Done loading buffer data");
-            
-                let vertex_buffer = gl.create_buffer().unwrap();
-                let mut conv_buffer: Vec<f32> = Vec::new();
-                for i in (0..buffer.len()).step_by(4) {
-                    let bytes: [u8; 4] = [buffer[i], buffer[i+1], buffer[i+2], buffer[i+3]];
-                    let f = f32::from_le_bytes(bytes);
-                    conv_buffer.push(f);
+                    gl.bind_buffer(GL::ARRAY_BUFFER, None);
+                },
+                Err(err) => {
+                    gloo_console::log!("Error getting position buffer: ", err);
+                    return; // Can't continue witout positions
                 }
-                let verts = js_sys::Float32Array::from(conv_buffer.as_slice());
-                gl.bind_buffer(GL::ARRAY_BUFFER, Some(&vertex_buffer));
-                gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &verts, GL::STATIC_DRAW);
-
-                // let data = buffer.data();
-                // let start = buffer_view.byte_offset() + accessor.byte_offset();
-                // let end = start + accessor.count() * accessor.size();
-                // let vertices = data[start..end].to_vec();
-                // // self.load_vertices(gl, vertices);
-
-                // let vertex_buffer = gl.create_buffer().unwrap();
-                // let verts = js_sys::Float32Array::from(vertices.as_slice());
-                
-                // self.poly_count += verts.length() as usize / 3;
-
-                // gl.bind_buffer(GL::ARRAY_BUFFER, Some(&vertex_buffer));
-                // gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &verts, GL::STATIC_DRAW);
+            };                
+            /* End of Position Buffer */
             
+
+            /* Normal Buffer */
+            match utils::get_data_from_buffer(primitive, &self.gltf, Semantic::Normals){
+                Ok(buffer) => {
+                    let conv_buffer = utils::get_f32_buffer_from_u8(buffer.buffer);
+                    gloo_console::log!("Getting normals");
+                    let vertex_buffer = gl.create_buffer().unwrap();                
+                    let verts = js_sys::Float32Array::from(conv_buffer.as_slice());
+                    gl.bind_buffer(GL::ARRAY_BUFFER, Some(&vertex_buffer));
+                    gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &verts, GL::STATIC_DRAW);
+                    match &self.shader_program {
+                        Some(sp) => {
+                            let att = gl.get_attrib_location(sp, "a_normal");
+                            gl.vertex_attrib_pointer_with_i32(att as u32, 3, GL::FLOAT, false, 0, 0);
+                            gl.enable_vertex_attrib_array(att as u32);
+                        },
+                        None => {
+                            gloo_console::log!("No shader program found while setting a_position");
+                        } 
+                    }
+                    gl.bind_buffer(GL::ARRAY_BUFFER, None);
+                },
+                Err(err) => {
+                    gloo_console::log!("Error getting normal buffer: ", err);
+                }
             };
+            /* End Normal Buffer */ 
+            
+            /* Tex_coord Buffer */
+            // TODO: Support multiple tex coords
+            match utils::get_data_from_buffer(primitive, &self.gltf, Semantic::TexCoords(0)){
+                Ok(buffer) => {
+                    gloo_console::log!("We got a buffer for tex coords");
+                    let conv_buffer = utils::get_f32_buffer_from_u8(buffer.buffer);
+                    gloo_console::log!("Texcoord buffer length: ", conv_buffer.len());
+                    for v in conv_buffer.iter() {
+                        gloo_console::log!("Texcoord: ", *v);
+                    }
+                    let vertex_buffer = gl.create_buffer().unwrap();                
+                    let verts = js_sys::Float32Array::from(conv_buffer.as_slice());
+                    gl.bind_buffer(GL::ARRAY_BUFFER, Some(&vertex_buffer));
+                    gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &verts, GL::STATIC_DRAW);
+                    
+                    match &self.shader_program {
+                        Some(sp) => {
+                            let att = gl.get_attrib_location(sp, "a_texcoord");
+                            gl.vertex_attrib_pointer_with_i32(att as u32, 2, GL::FLOAT, false, 0, 0);
+                            gl.enable_vertex_attrib_array(att as u32);
+                        },
+                        None => {} 
+                    }
+                    gl.bind_buffer(GL::ARRAY_BUFFER, None);
+                },
+                Err(err) => {
+                    gloo_console::log!("Error getting tex coord buffer: ", err);
+                }
+            };
+            /* End Tex_coord Buffer */ 
+
+
+            /* Color Buffer */
+            // TODO: Support multiple Color buffers
+            match utils::get_data_from_buffer(primitive, &self.gltf, Semantic::Colors(0)){
+                Ok(buffer) => {
+                    let conv_buffer = utils::get_f32_buffer_from_u8(buffer.buffer);
+
+                    let vertex_buffer = gl.create_buffer().unwrap();                
+                    let verts = js_sys::Float32Array::from(conv_buffer.as_slice());
+                    gl.bind_buffer(GL::ARRAY_BUFFER, Some(&vertex_buffer));
+                    gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &verts, GL::STATIC_DRAW);
+                    match &self.shader_program {
+                        Some(sp) => {
+                            let att = gl.get_attrib_location(sp, "a_color");
+                            gl.vertex_attrib_pointer_with_i32(att as u32, 3, GL::FLOAT, false, 0, 0);
+                            gl.enable_vertex_attrib_array(att as u32);
+                        },
+                        None => {}
+                    }
+                    gl.bind_buffer(GL::ARRAY_BUFFER, None);
+                },
+                Err(err) => {
+                    gloo_console::log!("Error getting tex coord buffer: ", err);
+                }
+            };
+            /* End Color Buffer */ 
+
+
+            // Other buffers
+                
         });
+        // });
         // });
         
 
@@ -192,8 +259,49 @@ impl Model {
     }
 
     pub fn update(&mut self, time: f32) {
-        // 
+        self.matrix = self.matrix.then_rotate(0.0, 1.0, 0.0, euclid::Angle { radians: time.sin() * std::f32::consts::PI });
     }
 
+    pub fn render(&mut self, gl: &GL, time: f32, camera: &Camera) { //projection: Transform3D<f32, (), ()>, view: Transform3D<f32, (), ()>
+        gloo_console::log!("Rendering model: ", self.name.clone());
+        gl.use_program(self.shader_program.as_ref());
+        // let sp = match self.shader_program {
+        //     Some(sp) => {
+        //         gl.use_program(sp);
+        //         sp
+        //     },
+        //     None => {
+        //         gloo_console::log!("No shader program found");
+        //         return;
+        //     }
+        // };
+
+
+        // let canvassize = gl.get_uniform_location(&shader_program, "canvasSize");
+        // gl.uniform2f(canvassize.as_ref(), width, height);
+
+        // self.time_location = gl.get_uniform_location(&shader_program, "u_time");
+        // gl.uniform1f(self.time_location.as_ref() , 1.0);
+        let canvassize = gl.get_uniform_location(&self.shader_program.as_mut().unwrap(), "u_screensize");
+        gl.uniform2f(canvassize.as_ref(), camera.width, camera.height);
+
+
+        let proj_loc = gl.get_uniform_location(&self.shader_program.as_mut().unwrap(), "u_projection");
+        let vals: [f32; 16] = camera.projection.to_array();
+        gl.uniform_matrix4fv_with_f32_array(proj_loc.as_ref() , false, &vals);
+
+        let view_loc = gl.get_uniform_location(&self.shader_program.as_mut().unwrap(), "u_view");
+        let vals: [f32; 16] = camera.view.to_array();
+        gl.uniform_matrix4fv_with_f32_array(view_loc.as_ref() , false, &vals);
+
+        let model_loc = gl.get_uniform_location(&self.shader_program.as_mut().unwrap(), "u_model");
+        let vals: [f32; 16] = self.matrix.to_array();
+        gl.uniform_matrix4fv_with_f32_array(model_loc.as_ref() , false, &vals);
+
+        // self.time_location = gl.get_uniform_location(&self.shader_program.as_mut().unwrap(), "u_time");
+        gl.uniform1f(self.time_location.as_ref() , time);
+
+        gl.draw_arrays(GL::TRIANGLES, 0, self.poly_count as i32);
+    }
     
 }

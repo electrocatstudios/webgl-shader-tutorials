@@ -4,6 +4,8 @@ use euclid::Transform3D;
 pub struct Camera {
     pub projection: Transform3D<f32, (), ()>,
     pub view: Transform3D<f32, (), ()>,
+    pub width: f32,
+    pub height: f32,
 }
 
 impl Camera {
@@ -11,11 +13,15 @@ impl Camera {
         Camera {
             projection: Transform3D::identity(),
             view: Transform3D::identity(),
+            width: 0.0,
+            height: 0.0,
         }
     }
 
     pub fn setup(&mut self, width: f32, height: f32) {
-
+        self.width = width;
+        self.height = height;
+        
         let fieldOfView = std::f32::consts::PI / 4.0;
         let aspect = width /height;
         let zNear = 0.1;

@@ -64,7 +64,7 @@ impl Component for CanvasControl {
 
         let comp_ctx = ctx.link().clone();
         wasm_bindgen_futures::spawn_local(async move {
-            let filename = "assets/triangle.gltf".to_string();
+            let filename = "assets/cube.gltf".to_string();
             let response = Request::get(&filename.clone())
                 .header("Content-Type", "application/json")
                 .send()
@@ -146,11 +146,11 @@ impl Component for CanvasControl {
             },
             CanvasControlMsg::Render => {
            
-                if !self.in_render_loop{
-                    self.in_render_loop = true;
+                // if !self.in_render_loop{
+                //     self.in_render_loop = true;
                     // gloo_console::log!("Render called");
                     self.render();
-                }
+                // }
                 true
             },
             CanvasControlMsg::ModelReceived(name, content) => {
@@ -257,8 +257,15 @@ impl CanvasControl {
         let delta = diff as f64 / 1000.0; // Frac of seconds
         self.u_time += delta as f32;
 
+        self.width = window().unwrap().inner_width().unwrap().as_f64().unwrap() as i32;
+        self.height = window().unwrap().inner_height().unwrap().as_f64().unwrap() as i32;
+
         // Do updates using delta
         self.last_update = now;
+
+        for model in self.models.iter_mut() {
+            model.update(delta as f32);
+        }
     }
 
     fn reload(&mut self) {
@@ -273,29 +280,25 @@ impl CanvasControl {
 
         self.camera.setup(self.width as f32,self.height as f32);
 
-        
-
         let _: &HtmlCanvasElement = match &self.canvas {
             Some(canv) => canv,
             None => return,
         };
 
-        let vertices: Vec<f32> = vec![
-            -1.0, -1.0, 0.,
-            1.0, -1.0, 0.,
-            1.0, 1.0, 0.,
-            -1.0, -1.0, 0.,
-            -1.0, 1.0, 0.,
-            1.0, 1.0, 0.
-        ];
+        // let vertices: Vec<f32> = vec![
+        //     -1.0, -1.0, 0.,
+        //     1.0, -1.0, 0.,
+        //     1.0, 1.0, 0.,
+        //     -1.0, -1.0, 0.,
+        //     -1.0, 1.0, 0.,
+        //     1.0, 1.0, 0.
+        // ];
 
         for model in self.models.iter_mut() {
             model.setup_shader(gl, self.width as f32, self.height as f32);
             model.load_textures(gl);
             model.setup(gl);
         }
-
-   
         
         // // Store mouse location
         // self.mouse_x_loc = gl.get_uniform_location(&shader_program, "mouse_x");
@@ -310,6 +313,10 @@ impl CanvasControl {
     fn render(&mut self) {
         self.canvas_update();
         
+        let c = self.node_ref.cast::<HtmlCanvasElement>().unwrap();
+        c.set_width(self.width as u32);
+        c.set_height(self.height as u32);
+
         let gl = self.gl.as_ref().expect("GL Context not initialized!");
 
         gl.viewport(
@@ -319,20 +326,24 @@ impl CanvasControl {
             self.height as i32,
         );
 
-        gl.clear_color(0., 0.7, 0., 1.0);
+        gl.clear_color(0., 0.5, 0., 1.0);
         gl.clear_depth(1.0);
 
         // Clear the color buffer bit
         gl.clear(GL::COLOR_BUFFER_BIT);
        
         // Update uniforms in the shaders - for now just the u_time (time since start in secs)
-        gl.uniform1f(self.time_location.as_ref() , self.u_time as f32);
+        // gl.uniform1f(self.time_location.as_ref() , self.u_time as f32);
 
         // Update the current mouse locations
-        gl.uniform1f(self.mouse_x_loc.as_ref() , self.mouse_x);
-        gl.uniform1f(self.mouse_y_loc.as_ref() , self.mouse_y);
+        // gl.uniform1f(self.mouse_x_loc.as_ref() , self.mouse_x);
+        // gl.uniform1f(self.mouse_y_loc.as_ref() , self.mouse_y);
 
-        gl.draw_arrays(GL::TRIANGLES, 0, self.tri_count);
+        for model in self.models.iter_mut() {
+            model.render(gl, self.u_time, &self.camera);
+        }
+
+        // gl.draw_arrays(GL::TRIANGLES, 0, self.tri_count);
 
         window()
             .unwrap()
