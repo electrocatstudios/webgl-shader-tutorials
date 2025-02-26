@@ -1,10 +1,15 @@
 precision highp float;
 
-uniform float u_time;
-uniform vec2 canvasSize;
-uniform sampler2D texture;
+uniform sampler2D u_texture;
 // uniform float mouse_x;
 // uniform float mouse_y;
+
+varying vec3 v_normal;
+varying vec2 v_texcoord;
+varying vec3 v_color;
+varying float v_time;
+varying vec2 v_screensize;
+//varying sampler2D v_texture;
 
 #define PI 3.1415
 #define TWO_PI 6.2824
@@ -21,7 +26,7 @@ vec2 N(float angle) {
 
 void main(void)
 {
-  vec2 uv = (gl_FragCoord.xy-(.5*canvasSize.xy)) / canvasSize.y;
+  vec2 uv = (gl_FragCoord.xy-(.5*v_screensize.xy)) / v_screensize.y;
   uv *= 2.;
   
   float angle = (5./6.) * PI;
@@ -40,15 +45,15 @@ void main(void)
   // col += smoothstep(.01, .0, abs(d));
 
   float scale = 2.;
-  float mouse_x = canvasSize.x / 2.0;
-  float mouse_y = canvasSize.y / 2.0;
+  float mouse_x = v_screensize.x / 2.0;
+  float mouse_y = v_screensize.y / 2.0;
   
   // Calculate depth of max number of iterations
   // We cycle between low depth and high depth
   // - more depth means more recursions of the fractal pattern
   float speed = 2.0 + (8. * mouse_y);
 
-  float num_calc = max_num * mouse_y; //mod( (u_time / speed) * (max_num / 2.), max_num);
+  float num_calc = max_num * mouse_y; //mod( (v_time / speed) * (max_num / 2.), max_num);
   num_calc -= max_num / 2.0;
   num_calc = abs(num_calc) * 2.0;
   num_calc -= 5.; 
@@ -78,7 +83,7 @@ void main(void)
       
   d = length(uv - vec2(clamp(uv.x, -1.,1.), 0.));
 
-  col += smoothstep(1./canvasSize.y, .0, d/scale);
+  col += smoothstep(1./v_screensize.y, .0, d/scale);
   col.rg += uv * 0.1;
   
   // Red hues
@@ -87,7 +92,7 @@ void main(void)
 
   col.b = 0.6;
   uv /= scale;
-  col += texture2D(texture, uv*2.+(u_time*.1)).rgb;
+  col += texture2D(u_texture, uv*2.+(v_time*.1)).rgb;
   col *= (mouse_x * 0.8) + 0.1;
   gl_FragColor = vec4(col, 1.);
 }

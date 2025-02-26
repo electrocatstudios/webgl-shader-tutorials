@@ -26,7 +26,7 @@ pub struct Model {
     // pub vao: Option<WebGlVertexArrayObject>,
 }
 
-const TEXTURE_1: &str = "/assets/forest_scene.png";
+const TEXTURE_1: &str = "assets/noise_old.png";
 
 impl Model {
     pub fn new(name: String, gltf: gltf_json::Root) -> Model {
@@ -47,8 +47,8 @@ impl Model {
     }
 
     pub fn setup_shader(&mut self, gl: &GL, width: f32, height: f32) { // TODO: Add shader name so each one can have it's own
-        let vert_code = include_str!("./simple.vert");
-        let frag_code = include_str!("./simple.frag");
+        let vert_code = include_str!("./texture_shad.vert");
+        let frag_code = include_str!("./texture_shad.frag");
         
         let vert_shader = gl.create_shader(GL::VERTEX_SHADER).unwrap();
         gl.shader_source(&vert_shader, &vert_code);

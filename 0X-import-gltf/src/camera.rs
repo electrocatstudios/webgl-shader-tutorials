@@ -23,6 +23,10 @@ impl Camera {
         // gloo_console::log!("y: {}", y);
     }
 
+    pub fn move_camera_x(&mut self, x: f32) {
+        self.view.m41 = x;
+    }
+
     pub fn setup(&mut self, width: f32, height: f32) {
         self.width = width;
         self.height = height;

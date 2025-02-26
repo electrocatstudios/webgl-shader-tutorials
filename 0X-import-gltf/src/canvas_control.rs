@@ -233,6 +233,8 @@ impl CanvasControl {
 
         // Vibrate camera up and down
         self.camera.move_camera_y(self.u_time.sin());
+        self.camera.move_camera_x(self.u_time.cos());
+
 
         // Do updates using delta
         self.last_update = now;
