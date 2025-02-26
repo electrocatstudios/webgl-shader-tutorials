@@ -228,6 +228,8 @@ impl CanvasControl {
 
         self.width = window().unwrap().inner_width().unwrap().as_f64().unwrap() as i32;
         self.height = window().unwrap().inner_height().unwrap().as_f64().unwrap() as i32;
+        
+        self.camera.update_screen_dimensions(self.width as f32, self.height as f32);
 
         // Do updates using delta
         self.last_update = now;

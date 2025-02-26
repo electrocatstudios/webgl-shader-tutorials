@@ -238,7 +238,7 @@ impl Model {
         self.matrix = self.matrix.then_rotate(0.0, 1.0, 0.0, euclid::Angle { radians: time.sin() * std::f32::consts::PI });
     }
 
-    pub fn render(&mut self, gl: &GL, time: f32, camera: &Camera) { //projection: Transform3D<f32, (), ()>, view: Transform3D<f32, (), ()>
+    pub fn render(&mut self, gl: &GL, time: f32, camera: &Camera) {
         gl.use_program(self.shader_program.as_ref());
         
         // Update uniforms

@@ -114,4 +114,10 @@ impl Camera {
 
         // mat4.lookAt(this.viewMatrix, eye, center, up);
     }
+
+    pub fn update_screen_dimensions(&mut self, width: f32, height: f32) {
+        if width != self.width || height != self.height {
+            self.setup(width, height);
+        }
+    }
 }
