@@ -5,7 +5,6 @@ use gltf_json::mesh::*;
 
 pub fn get_accessor_details(accessor: &Accessor) -> (i32, i32, u64) {
     // Calculate the number of bytes per component and the number of components
-    // gloo_console::log!("Accessor: ", accessor.type_.to_string());
     let ty = match accessor.type_ {
         Checked::Valid(val) => val,
         Checked::Invalid => {
@@ -26,11 +25,7 @@ pub fn get_accessor_details(accessor: &Accessor) -> (i32, i32, u64) {
     };
 
     let byte_size = get_byte_size_for_component_type(comp_ty.0);
-    // if accessor.count.0 % component_count as u64 != 0 {
-    //     gloo_console::log!("Invalid accessor count", accessor.count.0, component_count);
-    //     return (0, 0, 0);
-    // }
-    let triangle_count =  accessor.count.0 as u64; // / component_count as u64;
+    let triangle_count =  accessor.count.0 as u64;
 
     (component_count, byte_size, triangle_count) 
 }
@@ -38,10 +33,7 @@ pub fn get_accessor_details(accessor: &Accessor) -> (i32, i32, u64) {
 fn get_component_count_for_accessor_type(ty: accessor::Type) -> i32 {
     match ty {
         accessor::Type::Scalar => 1,
-        accessor::Type::Vec2 => {
-            gloo_console::log!("We have a vec2");
-            2
-        },
+        accessor::Type::Vec2 => 2,
         accessor::Type::Vec3 => 3,
         accessor::Type::Vec4 => 4,
         accessor::Type::Mat2 => 4,
@@ -64,8 +56,8 @@ fn get_byte_size_for_component_type(comp_ty: ComponentType) -> i32 {
 pub struct BufferObject {
     pub triangle_count: u64,
     pub buffer: Vec<u8>,
-    pub byte_stride: u64,
-    pub byte_offset: u64,
+    pub _byte_stride: u64,
+    pub _byte_offset: u64,
 }
 
 impl BufferObject {
@@ -73,8 +65,8 @@ impl BufferObject {
         BufferObject {
             triangle_count: triangle_count,
             buffer: Vec::<u8>::new(),
-            byte_stride: byte_stride,
-            byte_offset: byte_offset,
+            _byte_stride: byte_stride,
+            _byte_offset: byte_offset,
         }
     }
 }
@@ -86,8 +78,6 @@ pub fn get_data_from_buffer(primitive: &Primitive, gltf: &gltf_json::Root, seman
     let accessor = gltf.accessors.get(att.value()).unwrap();
     let buffer_view = gltf.buffer_views.get(accessor.buffer_view.unwrap().value()).unwrap();
     let buffer = gltf.buffers.get(buffer_view.buffer.value()).unwrap();
-    let buf_len: u64 = buffer.byte_length.0;
-    gloo_console::log!("Buffer length: ", buf_len, buffer.uri.clone());
     let (comp_count, comp_size, triangle_count) = get_accessor_details(accessor);
     let chunk_size = (comp_count * comp_size) as usize;
     let mut ret = BufferObject::new(chunk_size as u64, 0, triangle_count);
@@ -100,24 +90,10 @@ pub fn get_data_from_buffer(primitive: &Primitive, gltf: &gltf_json::Root, seman
                 let b64_data = uri.split(',').nth(1).unwrap().as_bytes();
                 let decoded = BASE64_STANDARD.decode(b64_data).unwrap();
                 
-                // TODO: Collect the data into buffer
-                gloo_console::log!("Decoded: ", decoded.len());
                 ret.buffer = Vec::<u8>::new();
                 for i in 0..accessor.count.0 as usize {
-                    // if semantic_in == Semantic::Positions {
-                    //     gloo_console::log!("Position: ");
-                    // } else if semantic_in == Semantic::Normals {
-                    //     gloo_console::log!("Normal: ");
-                    // } else if semantic_in == Semantic::TexCoords(0) {
-                    //     gloo_console::log!("Texcoord: ");
-                    // }else if semantic_in == Semantic::Colors(0) {
-                    //     gloo_console::log!("Texcoord: ");
-                    // }
-                    // gloo_console::log!("I", i, " stride", buffer_view.byte_stride.unwrap().0, "offset",accessor.byte_offset.unwrap().0 );
                     let offset = (i * buffer_view.byte_stride.unwrap().0) + accessor.byte_offset.unwrap().0 as usize;
                     for j in 0..chunk_size {
-                        // gloo_console::log!("chunk size: ", chunk_size, "j", j);
-
                         ret.buffer.push(decoded[offset + j]);
                     }
                 }
@@ -144,16 +120,11 @@ pub fn get_data_from_buffer(primitive: &Primitive, gltf: &gltf_json::Root, seman
 pub fn get_f32_buffer_from_u8(buffer: Vec<u8>) -> Vec<f32> {
     let mut ret = Vec::<f32>::new();
     for i in (0..buffer.len()).step_by(4) {
-        
+        // Convert each block of 4 to an f32        
         let bytes: [u8; 4] = [buffer[i], buffer[i+1], buffer[i+2], buffer[i+3]];
-        // gloo_console::log!("I", i, bytes[0], bytes[1], bytes[2], bytes[3]);
         let f = f32::from_le_bytes(bytes);
         ret.push(f);
     }
-    // gloo_console::log!("F32 length: ", ret.len());
-    // gloo_console::log!("F32 last: ", ret[8]);
-    // for i in 0..ret.len() {
-    //     gloo_console::log!("F32: ", ret[i]);
-    // }
+
     ret
 }

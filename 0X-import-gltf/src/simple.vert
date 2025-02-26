@@ -30,6 +30,6 @@ void main() {
     
     // Apply screen size correction
     vec2 uv = projectedPosition.xy; 
-    uv.x /= u_screensize.x / u_screensize.y;
+    // uv.x /= u_screensize.x / u_screensize.y;
     gl_Position = vec4(uv, projectedPosition.z, projectedPosition.w);
 }

@@ -22,24 +22,24 @@ impl Camera {
         self.width = width;
         self.height = height;
         
-        let fieldOfView = std::f32::consts::PI / 4.0;
+        let field_of_view = std::f32::consts::PI / 4.0;
         let aspect = width /height;
-        let zNear = 0.1;
-        let zFar = 100.0;
+        let z_near = 0.1;
+        let z_far = 100.0;
         
         // Not sure if we need to reset this but just in case
         self.projection = Transform3D::identity();
 
         // Maths copied from: https://github.com/toji/gl-matrix/blob/master/src/mat4.js\
         // Apply perspective
-        let f = 1.0 / (fieldOfView / 2.0).tan();
+        let f = 1.0 / (field_of_view / 2.0).tan();
         self.projection.m11 = f / aspect;
         self.projection.m22 = f;
         self.projection.m34 = -1.0;
 
-        let nf = 1.0 / (zNear - zFar);
-        self.projection.m33 = (zFar + zNear) * nf;
-        self.projection.m43 = (2.0 * zFar * zNear) * nf; 
+        let nf = 1.0 / (z_near - z_far);
+        self.projection.m33 = (z_far + z_near) * nf;
+        self.projection.m43 = (2.0 * z_far * z_near) * nf; 
         
         // Apply the look at
         let epsilon: f32 = 0.000001;
@@ -47,9 +47,9 @@ impl Camera {
         let center: [f32; 3] = [0.0, 0.5, 0.0];
         let up: [f32; 3] = [0.0, 1.0, 0.0];
         
-        if (eye[0] - center[0] < epsilon &&
-            eye[1] - center[1] < epsilon &&
-            eye[2] - center[2] < epsilon) {
+        if eye[0] - center[0] < epsilon &&
+           eye[1] - center[1] < epsilon &&
+           eye[2] - center[2] < epsilon {
             self.view = Transform3D::identity();
             return;
         }
