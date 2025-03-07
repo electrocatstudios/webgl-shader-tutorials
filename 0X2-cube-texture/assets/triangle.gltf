@@ -1,0 +1,86 @@
+{
+  "accessors": [
+    {
+      "bufferView": 0,
+      "byteOffset": 0,
+      "count": 3,
+      "componentType": 5126,
+      "type": "VEC3",
+      "min": [
+        -0.5,
+        -0.5,
+        0.0
+      ],
+      "max": [
+        0.5,
+        0.5,
+        0.0
+      ]
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 12,
+      "count": 3,
+      "componentType": 5126,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 24,
+      "count": 3,
+      "componentType": 5126,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 32,
+      "count": 3,
+      "componentType": 5126,
+      "type": "VEC3"
+    }
+  ],
+  "asset": {
+    "version": "2.0"
+  },
+  "buffers": [
+    {
+      "byteLength": 132,
+      "uri": "data:application/octet-stream;base64,AAAAPwAAAD8AAAAAH4VrPgAAAAA9Clc+AACAPwAAgD8AAAAAAAAAAAAAgD8AAAC/AAAAPwAAAABmZuY+AAAAAArXoz4AAAAAAAAAAAAAAAAAAAAAAACAPwAAAD8AAAC/AAAAAClcDz8AAAAA9ijcPgAAgD8AAAAAAAAAAAAAAAAAAIA/"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 132,
+      "byteStride": 44,
+      "target": 34962
+    }
+  ],
+  "meshes": [
+    {
+      "name": "triangle_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 3,
+            "COLOR_0": 1,
+            "TEXCOORD_0": 2
+          }
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0
+    }
+  ],
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ]
+}
