@@ -223,6 +223,12 @@ impl CanvasControl {
         }
         let diff = now - self.last_update;
 
+        if diff > 100.0 {
+            self.last_update = now;
+            // Effectively paused - probably not in focus right now
+            return;
+        }
+
         let delta = diff as f64 / 1000.0; // Frac of seconds
         self.u_time += delta as f32;
 
@@ -230,11 +236,6 @@ impl CanvasControl {
         self.height = window().unwrap().inner_height().unwrap().as_f64().unwrap() as i32;
         
         self.camera.update_screen_dimensions(self.width as f32, self.height as f32);
-
-        // Vibrate camera up and down
-        self.camera.move_camera_y(self.u_time.sin());
-        self.camera.move_camera_x(self.u_time.cos());
-
 
         // Do updates using delta
         self.last_update = now;
