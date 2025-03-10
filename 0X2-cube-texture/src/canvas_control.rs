@@ -236,7 +236,11 @@ impl CanvasControl {
         self.height = window().unwrap().inner_height().unwrap().as_f64().unwrap() as i32;
         
         self.camera.update_screen_dimensions(self.width as f32, self.height as f32);
-
+  
+        // Vibrate camera up and down
+        self.camera.move_camera_y(0.0);
+        self.camera.move_camera_x(0.0);
+        
         // Do updates using delta
         self.last_update = now;
 
