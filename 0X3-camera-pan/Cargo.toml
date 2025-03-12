@@ -1,0 +1,48 @@
+[package]
+name = "camera_pan"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gloo-net = {version="0.6.0", features = ["json"]}
+gloo-console = "0.3.0"
+gltf-json = "1.4.1"
+instant = { version = "0.1.13", features = [ "wasm-bindgen", "inaccurate" ] }
+js-sys = "0.3.76"
+rand = "0.8.5"
+serde_json = "1.0.139"
+wasm-bindgen = "0.2.99"
+yew = { version="0.21.0", features = ["csr"] }
+yew-router = "0.18.0"
+wasm-bindgen-futures = "0.4.50"
+euclid = "0.22.11"
+base64 = "0.22.1"
+
+
+[dependencies.web-sys]
+version = "0.3.72"
+features = [
+  "Navigator",
+  "Request",
+  "RequestInit",
+  "RequestMode",
+  "Response",
+  "Window",
+  "CanvasGradient",
+  "CanvasRenderingContext2d",
+  "HtmlCanvasElement",
+  "HtmlImageElement",
+  "ImageData",
+  "ImageBitmap",
+  "ReadableStream",
+  "Storage",
+  "Touch",
+  "TouchEvent",
+  "TouchList",
+  'WebGlBuffer',
+  'WebGlProgram',
+  'WebGlRenderingContext',
+  'WebGlShader',
+  'WebGlUniformLocation',
+  'WebGlTexture'
+]
