@@ -59,17 +59,17 @@ impl Camera {
 
     pub fn refresh(&mut self) {
         // Apply the look at
-        let epsilon: f32 = 0.000001;
+        let epsilon: f32 = 0.000000000001;
         let eye: [f32; 3] = [self.position[0], self.position[1], self.position[2]];
         let center: [f32; 3] = [0.0, 0.5, 0.0];
         let up: [f32; 3] = [0.0, 1.0, 0.0];
         
-        if eye[0] - center[0] < epsilon &&
-            eye[1] - center[1] < epsilon &&
-            eye[2] - center[2] < epsilon {
-            self.view = Transform3D::identity();
-            return;
-        }
+        // if eye[0] - center[0] < epsilon &&
+        //     eye[1] - center[1] < epsilon &&
+        //     eye[2] - center[2] < epsilon {
+        //     self.view = Transform3D::identity();
+        //     return;
+        // }
         let mut z = [eye[0] - center[0], eye[1] - center[1], eye[2] - center[2]];
         let len = 1.0 / (z[0] * z[0] + z[1] * z[1] + z[2] * z[2]).sqrt();
         z[0] *= len;

@@ -120,9 +120,14 @@ impl Component for CanvasControl {
                 let y = evt.1 as f32 / self.height as f32;
 
                 if self.mouse_down {
-                    self.rot += self.mouse_x - x;
+                    self.rot += x - self.mouse_x;
 
-                    self.cam_height += (self.mouse_y - y) * 2.0;
+                    self.cam_height += (y - self.mouse_y) * 2.0;
+                    if self.cam_height > 2.0 {
+                        self.cam_height = 2.0;
+                    } else if self.cam_height < -2.0 {
+                        self.cam_height = -2.0;
+                    }
                 }
                 
                 self.mouse_x = x;
